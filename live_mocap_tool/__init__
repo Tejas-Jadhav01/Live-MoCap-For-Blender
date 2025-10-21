@@ -108,7 +108,7 @@ classes = (
 
 bl_info = {
     "name": "Live Mocap Tool",
-    "author": "Gemini",
+    "author": "Tejas",
     "version": (1, 0),
     "blender": (4, 0, 0),
     "location": "3D Viewport > Sidebar > Mocap Tab",
