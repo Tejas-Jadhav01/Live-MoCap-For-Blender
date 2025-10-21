@@ -1,0 +1,151 @@
+import bpy
+from bpy.props import PointerProperty, BoolProperty, StringProperty, IntProperty, CollectionProperty, EnumProperty
+import os
+import sys
+
+# Ensure all necessary modules are imported/available for registration
+try:
+    from . import operators
+    from . import ui_panel
+    from . import data_stream
+    from . import mocap_logic
+except ImportError as e:
+    # This block ensures the addon can be installed even if the sub-modules aren't loaded yet
+    # Blender will handle the imports correctly after registration
+    pass 
+    
+# --- 1. Bone Mapping Property Group ---
+class MocapBoneMapping(bpy.types.PropertyGroup):
+    """A single mapping entry for a Mocap Joint to a Blender Bone."""
+    mocap_name: StringProperty(
+        name="Mocap Joint",
+        description="Name of the joint as provided by the Mocap server data (e.g., 'Spine')",
+        default="Mocap_Joint_Name"
+    )
+    blender_name: StringProperty(
+        name="Blender Bone",
+        description="Name of the bone in the target Armature (e.g., 'DEF-spine.001')",
+        default="Blender_Bone_Name"
+    )
+
+# --- 2. Scene Property Group ---
+class MocapProperties(bpy.types.PropertyGroup):
+    """Global Mocap properties stored in the scene."""
+    
+    # Connection Properties
+    ip_address: StringProperty(
+        name="IP Address",
+        description="IP address of the external Mocap server",
+        default="127.0.0.1"
+    )
+    port_number: IntProperty(
+        name="Port",
+        description="Port number of the external Mocap server",
+        default=5555,
+        min=1024,
+        max=65535
+    )
+    
+    # Armature Target
+    target_armature: PointerProperty(
+        type=bpy.types.Object,
+        name="Target Armature",
+        description="The armature object to receive the motion capture data",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
+    
+    # Operational Status
+    is_running: BoolProperty(
+        name="Is Running",
+        default=False,
+        description="True if the modal operator is active"
+    )
+    
+    # Data Status (True when the receiver is getting frames)
+    data_active: BoolProperty(
+        name="Data Active",
+        default=False,
+        description="True if motion data is currently flowing"
+    )
+    
+    # Mocap Mode Selection
+    mocap_mode: EnumProperty(
+        name="Mode",
+        description="Select the type of data being received",
+        items=[
+            ('WHOLE_BODY', "Whole Body", "Map full body rotations and root position"),
+            ('HANDS_ONLY', "Hands Only", "Map only hand and finger rotations")
+        ],
+        default='WHOLE_BODY'
+    )
+    
+    # Dynamic Bone Mapping Collection
+    mapping_collection: CollectionProperty(
+        type=MocapBoneMapping,
+        name="Bone Mappings"
+    )
+    
+    # Index for selecting items in the list UI
+    mapping_index: IntProperty(
+        name="Selected Mapping Index",
+        default=0
+    )
+
+
+# --- 3. Registration ---
+
+classes = (
+    MocapBoneMapping,
+    MocapProperties,
+    operators.MOCAP_OT_live_capture,
+    operators.MOCAP_OT_stop_capture,
+    operators.MOCAP_OT_calibrate_pose,
+    operators.MOCAP_OT_add_mapping,
+    operators.MOCAP_OT_remove_mapping,
+    ui_panel.MOCAP_PT_control_panel,
+    ui_panel.MOCAP_UL_bone_list,
+)
+
+bl_info = {
+    "name": "Live Mocap Tool",
+    "author": "Gemini",
+    "version": (1, 0),
+    "blender": (4, 0, 0),
+    "location": "3D Viewport > Sidebar > Mocap Tab",
+    "description": "Real-time motion capture streaming client via TCP socket.",
+    "category": "Animation",
+}
+
+def register():
+    # Register all classes
+    for cls in classes:
+        bpy.utils.register_class(cls)
+        
+    # Register Scene Properties
+    bpy.types.Scene.mocap_properties = PointerProperty(type=MocapProperties)
+
+
+def unregister():
+    # Unregister all classes
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
+        
+    # Unregister Scene Properties
+    del bpy.types.Scene.mocap_properties
+
+def _initialize_default_mappings(props):
+    """Sets up a basic default mapping for a generic rig."""
+    # These names align with the mocap_server_mock.py file
+    default_map = {
+        "Hips": "Hips",
+        "Spine": "Spine",
+        "RightShoulder": "Shoulder.R",
+        "LeftShoulder": "Shoulder.L",
+        "RightHandIndex1": "Index_1.R",
+        "LeftHandIndex1": "Index_1.L",
+    }
+    
+    for mocap_name, blender_name in default_map.items():
+        item = props.mapping_collection.add()
+        item.mocap_name = mocap_name
+        item.blender_name = blender_name
