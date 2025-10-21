@@ -2,9 +2,7 @@
 
 Live-MoCap-For-Blender is a lightweight toolkit and Blender add-on for receiving and applying live motion-capture data to armatures inside Blender in real time. It aims to let animators and developers stream motion data (WebSocket/UDP/VRPN/OSC/ROS/other) into Blender, map incoming skeletons to Blender armatures, and preview or record live animation.
 
-This README gives installation and usage guidance, recommended workflows, and developer notes. If you want a PR adding this file and related suggestions, I can prepare one.
 
----
 
 Table of contents
 - Project overview
